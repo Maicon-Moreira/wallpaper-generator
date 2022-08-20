@@ -34,13 +34,55 @@ def generate_mandelbrot_iterations_array(x1, y1, x2, y2, width, height, max_iter
 @nb.njit(parallel=True)
 def map_mandelbrot_iterations_to_grayscale(iterations, max_iterations):
     """Map the Mandelbrot iterations array to a grayscale image."""
-    image = np.zeros((iterations.shape[0], iterations.shape[1]), dtype=np.uint8)
+    image = np.zeros((iterations.shape[0], iterations.shape[1], 3), dtype=np.uint8)
     for x in nb.prange(iterations.shape[0]):
         for y in range(iterations.shape[1]):
             if iterations[x, y] == max_iterations:
                 image[x, y] = 0
             else:
-                image[x, y] = 255 - int(iterations[x, y] * 255 / max_iterations)
+                color = int(255 * iterations[x, y] / max_iterations)
+                image[x, y] = color, color, color
+    return image
+
+
+@nb.njit()
+def hsv_to_rgb(h, s, v):
+    if s == 0.0:
+        return [v, v, v]
+    i = int(h * 6.0)  # XXX assume int() truncates!
+    f = (h * 6.0) - i
+    p, q, t = v * (1.0 - s), v * (1.0 - s * f), v * (1.0 - s * (1.0 - f))
+    i %= 6
+    if i == 0:
+        return [v, t, p]
+    if i == 1:
+        return [q, v, p]
+    if i == 2:
+        return [p, v, t]
+    if i == 3:
+        return [p, q, v]
+    if i == 4:
+        return [t, p, v]
+    if i == 5:
+        return [v, p, q]
+
+
+@nb.njit()
+def map_mandelbrot_iterations_to_hsv(iterations, max_iterations):
+    """Map the Mandelbrot iterations array to a grayscale image."""
+    image = np.zeros((iterations.shape[0], iterations.shape[1], 3), dtype=np.uint8)
+    for x in nb.prange(iterations.shape[0]):
+        for y in range(iterations.shape[1]):
+            if iterations[x, y] == max_iterations - 1:
+                image[x, y] = 0
+            else:
+                hsv = [
+                    np.power((iterations[x, y] / max_iterations) * 360, 1.25) % 360,
+                    100,
+                    100,
+                ]
+                rgb = hsv_to_rgb(hsv[0] / 360, hsv[1] / 100, hsv[2] / 100)
+                image[x, y] = [int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255)]
     return image
 
 
@@ -48,9 +90,22 @@ def average(*args):
     return sum(args) / len(args)
 
 
+color_mapping_map = {
+    "grayscale": map_mandelbrot_iterations_to_grayscale,
+    "hsv": map_mandelbrot_iterations_to_hsv,
+}
+
+
 def render_mandelbrot(
-    center_x, center_y, zoom, pixels_width, pixels_height, max_iterations, filename
+    center_x,
+    center_y,
+    zoom,
+    resolution,
+    max_iterations,
+    filename,
+    color_mapping="grayscale",
 ):
+    pixels_width, pixels_height = resolution
     scaled_zoom = zoom * average(pixels_width, pixels_height)
     width, height = pixels_width / scaled_zoom, pixels_height / scaled_zoom
     x1, x2 = center_x - width / 2, center_x + width / 2
@@ -71,7 +126,7 @@ def render_mandelbrot(
     print("Mapping Mandelbrot iterations to grayscale...", end="")
     start = time.time()
     image = Image.fromarray(
-        map_mandelbrot_iterations_to_grayscale(iterations, max_iterations).T
+        color_mapping_map[color_mapping](iterations, max_iterations).transpose(1, 0, 2)
     )
     print(f" done in {time.time() - start:.2f} seconds")
 
@@ -82,12 +137,18 @@ def render_mandelbrot(
 
 
 def main():
-    # 1920 x 1080
-    # 2560 x 1440
-    # 3840 x 2160
-    # 7680 x 4320
 
-    render_mandelbrot(-0.74, -0.15, 75, 3840, 2160, 500, "mandelbrot.png")
+    HD = (1280, 720)
+    FHD = (1920, 1080)
+    QHD = (2560, 1440)
+    UHD = (3840, 2160)
+    FUHD = (7680, 4320)
+    UW_FHD = (2560, 1080)
+    UW_QHD = (3440, 1440)
+    UW_UHD = (5120, 2160)
+    UW_FUHD = (10240, 4320)
+
+    render_mandelbrot(-0.74, -0.15, 75, HD, 500, "mandelbrot.png", "hsv")
 
 
 if __name__ == "__main__":

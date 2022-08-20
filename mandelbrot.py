@@ -199,7 +199,7 @@ def main():
         center_x=-0.74,
         center_y=-0.15,
         zoom=75,
-        resolution=FUHD,
+        resolution=FHD,
         max_iterations=150,
         filename="mandelbrot.png",
         color_mapping="hsv",

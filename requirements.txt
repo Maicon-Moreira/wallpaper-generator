@@ -1,0 +1,4 @@
+Pillow
+numba
+numpy
+tqdm

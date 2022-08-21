@@ -10,7 +10,7 @@ It uses Python's Numba JIT compiler to generate images at speeds of up to 1000x 
 ## Installation
 
 ```bash
-git clone
+git clone https://github.com/Maicon-Moreira/wallpaper-generator
 cd wallpaper-generator
 pip install -r requirements.txt
 ```

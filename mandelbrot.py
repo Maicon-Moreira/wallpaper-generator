@@ -3,6 +3,7 @@ import numba as nb
 import numpy as np
 from tqdm import tqdm
 import time
+from color_mappings import hsv_to_rgb
 
 
 @nb.njit()
@@ -74,28 +75,6 @@ def map_mandelbrot_iterations_to_grayscale(iterations, max_iterations):
                 color = int(255 * iterations[x, y] / max_iterations)
                 image[x, y] = color, color, color
     return image
-
-
-@nb.njit()
-def hsv_to_rgb(h, s, v):
-    if s == 0.0:
-        return [v, v, v]
-    i = int(h * 6.0)  # XXX assume int() truncates!
-    f = (h * 6.0) - i
-    p, q, t = v * (1.0 - s), v * (1.0 - s * f), v * (1.0 - s * (1.0 - f))
-    i %= 6
-    if i == 0:
-        return [v, t, p]
-    if i == 1:
-        return [q, v, p]
-    if i == 2:
-        return [p, v, t]
-    if i == 3:
-        return [p, q, v]
-    if i == 4:
-        return [t, p, v]
-    if i == 5:
-        return [v, p, q]
 
 
 @nb.njit()
@@ -208,7 +187,7 @@ def main():
         center_x=-0.74,
         center_y=-0.15,
         zoom=75,
-        resolution=FUHD,
+        resolution=FHD,
         max_iterations=1000,
         filename="mandelbrot.png",
         color_mapping="hsv",

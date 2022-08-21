@@ -24,8 +24,7 @@ def mandelbrot_iterations_continuous(real, imag, max_iterations, escape_radius=2
         if modulus > escape_radius:
             break
 
-    modulus = np.sqrt(z.real * z.real + z.imag * z.imag)
-    if modulus < 1:
+    if modulus < escape_radius:
         return 0
     mu = i - (np.log(np.log(modulus))) / np.log(2.0)
     return mu
@@ -140,8 +139,17 @@ def render_mandelbrot(
     continuous=True,
     escape_radius=2000,
     hue_exponent=1.25,
+    MSAA=1,
 ):
+    # assert MSAA is square
+    assert MSAA**0.5 == int(
+        MSAA**0.5
+    ), "MSAA must be square, e.g. 1, 4, 9, 16, 25, etc."
+    MSAA_sqrt = int(MSAA**0.5)
+
     pixels_width, pixels_height = resolution
+    pixels_width *= MSAA_sqrt
+    pixels_height *= MSAA_sqrt
     scaled_zoom = zoom * average(pixels_width, pixels_height)
     width, height = pixels_width / scaled_zoom, pixels_height / scaled_zoom
     x1, x2 = center_x - width / 2, center_x + width / 2
@@ -174,6 +182,7 @@ def render_mandelbrot(
             iterations, max_iterations, hue_exponent=hue_exponent
         ).transpose(1, 0, 2)
     )
+    image = image.resize([pixels_width // MSAA_sqrt, pixels_height // MSAA_sqrt])
     print(f" done in {time.time() - start:.2f} seconds")
 
     print("Saving image...", end="")
@@ -199,13 +208,14 @@ def main():
         center_x=-0.74,
         center_y=-0.15,
         zoom=75,
-        resolution=FHD,
-        max_iterations=150,
+        resolution=FUHD,
+        max_iterations=1000,
         filename="mandelbrot.png",
         color_mapping="hsv",
         continuous=True,
         escape_radius=2000,
-        hue_exponent=1.1,
+        hue_exponent=1.6,
+        MSAA=4,
     )
 
 

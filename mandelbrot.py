@@ -3,7 +3,7 @@ import numba as nb
 import numpy as np
 from tqdm import tqdm
 import time
-from color_mappings import hsv_to_rgb
+from color_mappings import hsv_to_rgb, hcl_to_rgb
 
 
 @nb.njit()
@@ -79,7 +79,7 @@ def map_mandelbrot_iterations_to_grayscale(iterations, max_iterations):
 
 @nb.njit()
 def map_mandelbrot_iterations_to_hsv(iterations, max_iterations, hue_exponent=1.25):
-    """Map the Mandelbrot iterations array to a grayscale image."""
+    """Map the Mandelbrot iterations array to a hsv image."""
     image = np.zeros((iterations.shape[0], iterations.shape[1], 3), dtype=np.uint8)
     for x in nb.prange(iterations.shape[0]):
         for y in range(iterations.shape[1]):
@@ -97,6 +97,34 @@ def map_mandelbrot_iterations_to_hsv(iterations, max_iterations, hue_exponent=1.
     return image
 
 
+@nb.njit()
+def map_mandelbrot_iterations_to_hcl(iterations, max_iterations, hue_exponent=1.25):
+    """Map the Mandelbrot iterations array to a hcl image."""
+    image = np.zeros((iterations.shape[0], iterations.shape[1], 3), dtype=np.uint8)
+    for x in nb.prange(iterations.shape[0]):
+        for y in range(iterations.shape[1]):
+            if iterations[x, y] == 0:
+                image[x, y] = 0, 0, 0
+            else:
+                # https://en.wikipedia.org/wiki/Plotting_algorithms_for_the_Mandelbrot_set#LCH_Coloring
+                # 
+                # s = iters/max_i;
+                # v = 1.0 - powf(pi * s, 2.0);
+                # LCH = [75 - (75 * v), 28 + (75 - (75 * v)), powf(360 * s, 1.5) % 360];
+                # 
+
+                s = iterations[x, y] / max_iterations
+                v = 1.0 - np.power(np.pi * s, 2.0)
+                l = 75 - (75 * v)
+                c = 28 + (75 - (75 * v))
+                h = np.power(360 * s, 1.5) % 360
+
+                rgb = hcl_to_rgb(h, c, l)
+
+                image[x, y] = [int(rgb[0]), int(rgb[1]), int(rgb[2])]
+    return image
+
+
 def average(*args):
     return sum(args) / len(args)
 
@@ -104,6 +132,7 @@ def average(*args):
 color_mapping_map = {
     "grayscale": map_mandelbrot_iterations_to_grayscale,
     "hsv": map_mandelbrot_iterations_to_hsv,
+    "hcl": map_mandelbrot_iterations_to_hcl,
 }
 
 
@@ -188,13 +217,13 @@ def main():
         center_y=-0.15,
         zoom=75,
         resolution=FHD,
-        max_iterations=1000,
+        max_iterations=500,
         filename="mandelbrot.png",
-        color_mapping="hsv",
+        color_mapping="hcl",
         continuous=True,
         escape_radius=2000,
         hue_exponent=1.6,
-        MSAA=4,
+        MSAA=1,
     )
 
 

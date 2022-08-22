@@ -4,6 +4,7 @@ import numpy as np
 from tqdm import tqdm
 import time
 from color_mappings import hsv_to_rgb, hcl_to_rgb
+import math
 
 
 @nb.njit()
@@ -98,7 +99,7 @@ def map_mandelbrot_iterations_to_hsv(iterations, max_iterations, hue_exponent=1.
 
 
 @nb.njit()
-def map_mandelbrot_iterations_to_hcl(iterations, max_iterations, hue_exponent=1.25):
+def map_mandelbrot_iterations_to_hcl(iterations, max_iterations, hue_exponent=1.25, hue_offset=0):
     """Map the Mandelbrot iterations array to a hcl image."""
     image = np.zeros((iterations.shape[0], iterations.shape[1], 3), dtype=np.uint8)
     for x in nb.prange(iterations.shape[0]):
@@ -107,17 +108,21 @@ def map_mandelbrot_iterations_to_hcl(iterations, max_iterations, hue_exponent=1.
                 image[x, y] = 0, 0, 0
             else:
                 # https://en.wikipedia.org/wiki/Plotting_algorithms_for_the_Mandelbrot_set#LCH_Coloring
-                # 
+                #
                 # s = iters/max_i;
                 # v = 1.0 - powf(pi * s, 2.0);
                 # LCH = [75 - (75 * v), 28 + (75 - (75 * v)), powf(360 * s, 1.5) % 360];
-                # 
+                #
 
                 s = iterations[x, y] / max_iterations
                 v = 1.0 - np.power(np.pi * s, 2.0)
+
+                # MAGIC DIVISION TO MAKE THE COLORS LOOK BETTER
+                v /= math.pi
+
                 l = 75 - (75 * v)
-                c = 28 + (75 - (75 * v))
-                h = np.power(360 * s, 1.5) % 360
+                c = 28 + l
+                h = (np.power(360 * s, hue_exponent) + hue_offset) % 360
 
                 rgb = hcl_to_rgb(h, c, l)
 
@@ -147,6 +152,7 @@ def render_mandelbrot(
     continuous=True,
     escape_radius=2000,
     hue_exponent=1.25,
+    hue_offset=0,
     MSAA=1,
 ):
     # assert MSAA is square
@@ -187,7 +193,7 @@ def render_mandelbrot(
     start = time.time()
     image = Image.fromarray(
         color_mapping_map[color_mapping](
-            iterations, max_iterations, hue_exponent=hue_exponent
+            iterations, max_iterations, hue_exponent=hue_exponent, hue_offset=hue_offset
         ).transpose(1, 0, 2)
     )
     image = image.resize([pixels_width // MSAA_sqrt, pixels_height // MSAA_sqrt])
@@ -216,13 +222,14 @@ def main():
         center_x=-0.74,
         center_y=-0.15,
         zoom=75,
-        resolution=FHD,
-        max_iterations=500,
+        resolution=HD,
+        max_iterations=1000,
         filename="mandelbrot.png",
         color_mapping="hcl",
         continuous=True,
-        escape_radius=2000,
-        hue_exponent=1.6,
+        escape_radius=100000,
+        hue_exponent=1.5, # increase as the max_iterations increases
+        hue_offset=150,
         MSAA=1,
     )
 
